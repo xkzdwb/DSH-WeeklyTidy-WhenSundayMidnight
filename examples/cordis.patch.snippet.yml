@@ -1,0 +1,23 @@
+# 把这段并进 ~/.dsh/profiles/<profile>/cordis.patch.yml 的 `- insert:` 列表里。
+#
+# name 两种写法：
+#   - 包名 `dsh-weekly-tidy`：通过插件管理页安装过本地包时可用；
+#   - 绝对路径：把下面 /absolute/path/to/DSH-WeeklyTidy-WhenSundayMidnight/index.js
+#     换成这个目录在本机的真实位置（正斜杠或反斜杠都行）。
+- insert:
+    - id: weekly-tidy
+      name: /absolute/path/to/DSH-WeeklyTidy-WhenSundayMidnight/index.js
+      config:
+        weekday: 0
+        time: '00:00'
+        timeZone: Asia/Shanghai
+        catchUp: true
+        minAgeDays: 1
+        minFilesPerProject: 3
+        maxFilesPerRun: 200
+        # 工作区名单留空 = 全部；也可以写绝对路径，特别想整理哪个就写哪个。
+        workspaces: []
+        excludeWorkspaces:
+          - default-workspace
+        # 例如：['/Users/you/Desktop/别动这里']
+        protectPaths: []

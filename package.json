@@ -1,0 +1,47 @@
+{
+  "name": "dsh-weekly-tidy",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH 每周整理：每周日 00:00 让模型把各工作区根目录的散落文件按项目收进 NN-中文项目名 文件夹。只移动不删除，可整批撤回。",
+  "main": "index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek",
+    "deepseek-harness",
+    "cordis",
+    "plugin",
+    "weekly",
+    "tidy",
+    "organize",
+    "workspace"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "tools",
+    "locale",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test/run-tests.mjs",
+    "plan": "node tools/tidy.mjs plan",
+    "status": "node tools/tidy.mjs status"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

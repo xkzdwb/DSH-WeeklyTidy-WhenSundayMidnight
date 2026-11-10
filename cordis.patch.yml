@@ -1,0 +1,49 @@
+# weekly-tidy — 每周日凌晨 0 点，把工作区根目录的散落文件按项目收进文件夹。
+#
+# 规则（只改工作区「里面」，绝不碰工作区目录本身）：
+#   1. 只看每个工作区根目录的第一层文件；子目录一律不进去、不改名、不移动。
+#   2. 以数字开头的文件夹（01-项目名 这种）视为已经整理好的项目，整棵跳过。
+#   3. 剩下的散落文件交给模型判断归属，按项目建 <工作区>/NN-中文项目名/，
+#      文件保持原名搬进去（不改名，免得打断脚本里的相对路径）。
+#   4. 一组不到 minFilesPerProject 个文件就先不建夹，留在原处，报告里会写原因。
+#   5. 只移动不删除；每次运行写 audit/runs/<runId>.json|.md 与 audit/journal.jsonl，
+#      可以用 tools/tidy.mjs undo <runId> 整批撤回。
+#
+# 想先看它打算做什么、又不真动文件：
+#   node tools/tidy.mjs plan
+- insert:
+    - id: weekly-tidy
+      name: dsh-weekly-tidy
+      config:
+        # 总开关。false 时插件还在，但到点不整理。
+        enabled: true
+        # 什么时间整理。0=周日 … 6=周六；时间按下面那个时区算，不看本机时区。
+        weekday: 0
+        time: '00:00'
+        timeZone: Asia/Shanghai
+        # 关机/休眠错过 0 点后，开机 5 分钟内补跑一次。
+        catchUp: true
+        # 多久看一次表（毫秒）。到点后有几十秒延迟是正常的。
+        tickIntervalMs: 30000
+        # 最近 N 天动过的文件先不动，避免正在用的截图/脚本被搬走。0 = 不限。
+        minAgeDays: 1
+        # 一组至少几个文件才建文件夹。1 个文件单开一个夹比散着更乱。
+        minFilesPerProject: 3
+        # 一次运行最多搬多少个文件，防止模型判断跑偏时一晚上搬空所有工作区。
+        maxFilesPerRun: 200
+        # 一次模型调用最多喂多少个文件；文件多时自动分批，再按项目名合并。
+        maxFilesPerPrompt: 40
+        # 项目文件夹名（不含 NN- 编号）最长多少个字符。
+        nameMaxLength: 24
+        # 指定模型；留空 = 用当前会话的默认模型。
+        model: ''
+        # 工作区名单。留空 = 注册在 DSH 里的全部工作区；也可以填 id、标题或绝对路径。
+        workspaces: []
+        # 不整理的工作区。DSH 自带的空工作区没必要动。
+        excludeWorkspaces:
+          - default-workspace
+        # 额外保护的路径：这些路径（及其下面的东西）绝不移动。
+        # 插件自身目录、以及 profile 里引用的插件/配置路径会自动保护。
+        protectPaths: []
+        # 额外保护的文件名（根目录里见到就跳过，不区分大小写）。
+        protectNames: []

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Weekly Tidy",
+    "description": "Every Sunday at 00:00 the model groups loose files in each workspace root into numbered Chinese project folders (NN-name). Numbered projects, README files and recently changed files are left alone; moves only, never deletes, and every run can be undone."
+  }
+}
