@@ -21,3 +21,8 @@
           - default-workspace
         # 例如：['/Users/you/Desktop/别动这里']
         protectPaths: []
+
+# 装好之后，下面两条会自动出现在 DSH 里（不需要额外配置）：
+#   输入框敲 /tidy-workspace      技能：整理当前会话所在的工作区
+#   工具 tidy_workspace           模型自己调，同一个范围
+# 它们不受上面 enabled:false 的影响；想彻底关掉技能和工具，就把整条 insert 注释掉。

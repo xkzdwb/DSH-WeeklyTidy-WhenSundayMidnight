@@ -11,6 +11,11 @@
 #
 # 想先看它打算做什么、又不真动文件：
 #   node tools/tidy.mjs plan
+#
+# 除了定时，它还注册两条「现在整理当前工作区」（范围只有当前会话那一个工作区）：
+#   输入框敲 /tidy-workspace      技能：模型照 skills/tidy-workspace/SKILL.md 走
+#   或直接说「整理这个工作区」     工具 tidy_workspace：默认直接整理
+# 两条都不受 enabled=false 限制 —— 那是给「到点自动跑」的开关，人明确说要整理就是授权。
 - insert:
     - id: weekly-tidy
       name: dsh-weekly-tidy

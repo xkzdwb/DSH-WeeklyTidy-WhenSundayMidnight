@@ -1,10 +1,12 @@
 # DSH-WeeklyTidy-WhenSundayMidnight
 
 > 每周日 00:00，让模型看一眼每个工作区根目录的散落文件，按项目收进 `NN-中文项目名/` 文件夹。
+> 平时不用等周日：任意对话里敲 `/tidy-workspace`，立刻整理**当前这一个**工作区。
 
 - **给 DSH 用**：Cordis 插件，挂在 HOST 里，到点自己整理；到点时 DSH 没开，下次启动补跑一次。
 - **判断靠模型**：读文件名、大小、日期和文本片段，决定哪些文件属于同一个项目、该叫什么名字。
 - **只移动，不删除**：文件保持原名搬进文件夹，每次运行都有账本，一条命令整批撤回。
+- **随时可用**：带一个 `/tidy-workspace` 技能和一个 `tidy_workspace` 工具，规则和定时那条完全一样。
 - **零依赖**：只用 Node 内置模块，不需要 `npm install`。
 
 ---
@@ -32,7 +34,35 @@ README、`package.json`、`cordis.patch.yml`、锁文件、隐藏项、`.git`/`n
 - 编号从根目录已有 `NN-` 的最大值 +1 开始；文件名保持原样，不做 `01-` 前缀。
 - 拿不准的文件留在原处，报告里逐条写原因。
 
-## 3. 装上它
+## 3. 随时整理当前工作区
+
+定时那条只是「周日顺手做一次」。想现在就整理，有两种等价的用法：
+
+| 用法 | 谁发起 | 做什么 |
+| --- | --- | --- |
+| 输入框敲 `/tidy-workspace` | 你 | 把 `skills/tidy-workspace/SKILL.md` 交给模型，模型照里面的步骤调下面的工具 |
+| 模型自己调 `tidy_workspace` | 模型 | 你说「整理一下这个工作区」时它会自己想到 |
+
+两者整理的范围都只有**当前会话所在的那一个工作区**，不是配置里列的全部：
+
+- 会话的 cwd 正好是某个工作区的根 → 就整理它；
+- cwd 在工作区里的某个子目录 → 归到那个工作区的**根目录**（规则本来只动根目录那一层）；
+- cwd 是个没注册过的文件夹 → 就把这个文件夹自己当成一个工作区。
+
+工具**默认直接整理**（`dryRun: false`）：敲 `/tidy-workspace` 或说「整理一下这个工作区」就是授权，
+那一次调用会走审批，审批卡片本身就是确认点。只想看不动的场合才传 `dryRun: true`。
+想连今天刚改过的文件一起整理，加 `minAgeDays: 0`（否则默认沿用配置里的「最近 1 天不动」）。
+
+跟周日那条的差别只有三点：
+
+1. 范围收窄成一个工作区，不会去动别的；
+2. 不受 `enabled: false` 限制——那是给「到点自动跑」的开关，你明确说了整理就是授权；
+3. `minAgeDays` / `minFilesPerProject` / `maxFilesPerRun` / `maxFilesPerPrompt` / `nameMaxLength`
+   可以**这一次**临时覆盖（只有这五个键，调度、工作区名单、保护名单改不动）。
+
+跑完一样写 `audit/runs/<runId>.json|.md` 和 `audit/journal.jsonl`，一样的 `undo` 撤回。
+
+## 4. 装上它
 
 需要 DSH 的桌面版（插件依赖 `workspaceRegistry`、`llm`、`agentDefaultModel` 这几个 HOST 服务）。
 
@@ -49,7 +79,7 @@ README、`package.json`、`cordis.patch.yml`、锁文件、隐藏项、`.git`/`n
 
 装好后，插件的配置项都在 `cordis.patch.yml` 里（见第 4 节），插件管理页也能改。
 
-## 4. 配置
+## 5. 配置
 
 | 键 | 默认 | 说明 |
 | --- | --- | --- |
@@ -72,7 +102,7 @@ README、`package.json`、`cordis.patch.yml`、锁文件、隐藏项、`.git`/`n
 
 保护名单里永远有：插件自身目录、profile 的 `cordis.patch.yml` / `package.json` 里用引号写着的绝对路径。
 
-## 5. 命令
+## 6. 命令
 
 ```bash
 cd /path/to/DSH-WeeklyTidy-WhenSundayMidnight
@@ -94,7 +124,7 @@ node tools/tidy.mjs undo 20261115-000012
 - `GET /plugin-weekly-tidy/plan` — 只读预览
 - `POST /plugin-weekly-tidy/run` — `{"dryRun":true}` 只出计划；`{"confirm":"run"}` 真搬
 
-## 6. 账本与撤回
+## 7. 账本与撤回
 
 每次运行写：
 
@@ -105,16 +135,25 @@ node tools/tidy.mjs undo 20261115-000012
 `undo` 不覆盖已有文件：整理后的文件被人挪走、或原位置已经有同名文件，那一条记为失败并列出来，
 其余照常撤回。
 
-## 7. 自测
+## 8. 自测
 
 ```bash
-node test/run-tests.mjs
+node test/run-tests.mjs      # 25 项：规则
+node test/run-assembly.mjs   #  7 项：装配
+npm run test:all             # 两套一起
 ```
 
-22 项离线测试，不联网、不调真模型（临时目录 + 假 `askModel`），覆盖命名/编号/扫描/分批/模型报错/
-熔断/执行与撤回/时区与配置回退。GitHub Actions 也会在每次 push 时跑一遍（`.github/workflows/test.yml`）。
+两套都是离线测试，不联网、不调真模型（临时目录 + 假 `askModel`）：
 
-## 8. 已知限制
+- `run-tests.mjs` 覆盖命名/编号/扫描/分批/模型报错/熔断/执行与撤回/时区与配置回退，
+  外加「只整理指定工作区」「`minAgeDays` 覆盖」「frontmatter 解析」；
+- `run-assembly.mjs` 给 `apply()` 一个假 ctx，验证的是**注册出来的东西**：技能和工具真的挂上了、
+  工具默认直接整理、`dryRun: true` 只出计划、cwd 在子目录里仍整理工作区根目录、
+  `enabled: false` 不挡手动整理、拿不到 cwd 时给出可操作的报错。
+
+GitHub Actions 会在每次 push 时跑这两套（`.github/workflows/test.yml`）。
+
+## 9. 已知限制
 
 - 项目名由模型起，同一次运行内稳定，不同次运行措辞可能略有差别。
 - 文件保持原名，但搬进子目录后，原本按相对路径读写它们的脚本可能需要跟着改；

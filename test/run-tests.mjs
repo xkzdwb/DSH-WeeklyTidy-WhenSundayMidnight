@@ -18,6 +18,7 @@ import {
 import { buildPlan } from '../lib/plan.js'
 import { scanWorkspace } from '../lib/scan.js'
 import { formatInZone, nextOccurrence, parseTimeOfDay, previousOccurrence } from '../lib/schedule.js'
+import { frontmatterOf } from '../lib/skill.js'
 
 let passed = 0
 let failed = 0
@@ -113,7 +114,7 @@ async function planFor(root, { askModel = askAll(), extra = {}, workspaces } = {
 // ---------------------------------------------------------------- 命名
 
 test('cleanProjectName 去掉编号、非法字符和末尾点', () => {
-  equal(cleanProjectName('03-示例项目 表头核对'), '示例项目-表头核对')
+  equal(cleanProjectName('03-团委档案 表头核对'), '团委档案-表头核对')
   equal(cleanProjectName('a/b:c*d'), 'a-b-c-d')
   equal(cleanProjectName('  --尾部--  '), '尾部')
   equal(cleanProjectName('CON'), 'CON-项目')
@@ -121,9 +122,9 @@ test('cleanProjectName 去掉编号、非法字符和末尾点', () => {
 })
 
 test('编号识别与续号', () => {
-  assert(isNumberedName('01-示例项目'), '01- 应识别为编号目录')
-  assert(!isNumberedName('Some-Folder'), '没有编号的不算')
-  equal(projectNumber('03-示例项目丙'), 3)
+  assert(isNumberedName('01-团委档案'), '01- 应识别为编号目录')
+  assert(!isNumberedName('Win-Pad Connect'), '没有编号的不算')
+  equal(projectNumber('03-网页端DeepSeek'), 3)
   equal(nextProjectNumber(['01-甲', '07-乙', '散目录']), 8)
   equal(nextProjectNumber([]), 1)
   equal(projectFolderName(4, '新项目'), '04-新项目')
@@ -362,6 +363,77 @@ test('配置回退：坏时间/坏星期/坏整数都有警告', () => {
 test('maxFilesPerPrompt 不会超过 maxFilesPerRun', () => {
   const { config } = normalizeConfig({ maxFilesPerRun: 10, maxFilesPerPrompt: 80 })
   equal(config.maxFilesPerPrompt, 10)
+})
+
+// ---------------------------------------------------------------- 单个工作区（技能/工具）
+
+await testAsync('只整理指定的那一个工作区，别的工作区一个字都不动', async () => {
+  const rootA = makeRoot()
+  const rootB = makeRoot()
+  for (const name of ['a.png', 'b.png', 'c.png']) {
+    touch(join(rootA, name), { daysAgo: 5 })
+    touch(join(rootB, name), { daysAgo: 5 })
+  }
+  const plan = await buildPlan({
+    workspaces: [{ id: 'only-a', path: rootA, title: 'A' }],
+    config: cfg(),
+    protectPaths: [],
+    now: Date.now(),
+    askModel: askAll('甲'),
+  })
+  equal(plan.workspaces.length, 1)
+  equal(plan.workspaces[0].moves.length, 3)
+  for (const move of plan.workspaces[0].moves) {
+    assert(move.to.startsWith(rootA.replace(/\\/g, '/') + '/'), `目标应在 A 里：${move.to}`)
+    assert(!move.to.includes(rootB.replace(/\\/g, '/')), '不该碰到 B')
+  }
+  // B 里三个文件一个都没少
+  equal(readdirSync(rootB).filter((name) => name.endsWith('.png')).length, 3)
+})
+
+await testAsync('minAgeDays 覆盖：默认挡住新文件，传 0 就连今天的也整理', async () => {
+  const root = makeRoot()
+  for (const name of ['a.png', 'b.png', 'c.png']) touch(join(root, name))
+
+  const blocked = await buildPlan({
+    workspaces: [{ id: 'w', path: root, title: 'W' }],
+    config: cfg({ minAgeDays: 1 }),
+    protectPaths: [],
+    now: Date.now(),
+    askModel: askAll('甲'),
+  })
+  equal(blocked.workspaces[0].moves.length, 0, '刚建的文件应被 minAgeDays 挡住')
+  assert(
+    blocked.workspaces[0].skipped.some((item) => item.reason.includes('最近 1 天内改过')),
+    '应说明是因为太新才跳过',
+  )
+
+  const forced = await buildPlan({
+    workspaces: [{ id: 'w', path: root, title: 'W' }],
+    config: cfg({ minAgeDays: 0 }),
+    protectPaths: [],
+    now: Date.now(),
+    askModel: askAll('甲'),
+  })
+  equal(forced.workspaces[0].moves.length, 3, 'minAgeDays=0 应把新文件也收进来')
+})
+
+test('frontmatterOf 读得懂技能头的名字/描述/when_to_use', () => {
+  const src = [
+    '---',
+    'name: tidy-workspace',
+    'description: 整理当前工作区',
+    'when_to_use: >',
+    '  用户想现在整理',
+    '  这个工作区',
+    '---',
+    '',
+    '# 正文',
+  ].join('\n')
+  const meta = frontmatterOf(src)
+  equal(meta.name, 'tidy-workspace')
+  equal(meta.description, '整理当前工作区')
+  equal(meta.when_to_use, '用户想现在整理 这个工作区')
 })
 
 // ---------------------------------------------------------------- 收尾
